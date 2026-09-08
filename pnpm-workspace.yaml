@@ -1,4 +1,9 @@
 packages:
   - "."
+  - "examples/*"
 allowBuilds:
   msgpackr-extract: false
+minimumReleaseAgeExclude:
+  - "@foldkit/devtools@0.158.2"
+  - "@foldkit/vite-plugin@0.20.2"
+  - foldkit@0.158.2

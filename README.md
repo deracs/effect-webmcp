@@ -17,6 +17,11 @@ The package targets Effect 4 because its schemas, scoped runtime bridges, and
 service APIs are used directly. Its supported range starts at
 `4.0.0-beta.47`, the Effect version currently used by Sevenfall.
 
+## Examples
+
+- [`examples/foldkit`](./examples/foldkit) contains a runnable Foldkit counter
+  application.
+
 ## Define and register a tool
 
 ```ts
