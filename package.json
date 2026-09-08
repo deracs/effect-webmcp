@@ -1,0 +1,59 @@
+{
+  "name": "effect-webmcp",
+  "version": "0.1.0",
+  "description": "Effect-native tools and layers for the WebMCP browser API.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deracs/effect-webmcp.git"
+  },
+  "homepage": "https://github.com/deracs/effect-webmcp#readme",
+  "bugs": {
+    "url": "https://github.com/deracs/effect-webmcp/issues"
+  },
+  "keywords": [
+    "effect",
+    "webmcp",
+    "mcp",
+    "ai",
+    "browser",
+    "tools"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check": "pnpm run check:type && pnpm run check:lint && pnpm run test && pnpm run build",
+    "check:type": "tsc --noEmit",
+    "check:lint": "biome check",
+    "check:lint:fix": "biome check --write",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "effect": ">=4.0.0-beta.47 <5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "effect": "4.0.0-beta.47",
+    "tsdown": "^0.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  },
+  "packageManager": "pnpm@12.3.4"
+}
