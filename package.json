@@ -1,6 +1,6 @@
 {
   "name": "effect-webmcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Effect-native tools and layers for the WebMCP browser API.",
   "keywords": [
     "ai",
