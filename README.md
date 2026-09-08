@@ -20,19 +20,19 @@ service APIs are used directly. Its supported range starts at
 ## Define and register a tool
 
 ```ts
-import { Effect, Schema } from "effect"
-import { WebMcp, WebMcpTool } from "effect-webmcp"
+import { Effect, Schema } from "effect";
+import { WebMcp, WebMcpTool } from "effect-webmcp";
 
 const AddTodoInput = Schema.Struct({
   text: Schema.NonEmptyString.annotate({
     description: "Text for the new todo item",
   }),
-})
+});
 
 const AddTodoOutput = Schema.Struct({
   status: Schema.Literal("created"),
   text: Schema.String,
-})
+});
 
 const addTodo = WebMcpTool.make({
   name: "add-todo",
@@ -48,18 +48,18 @@ const addTodo = WebMcpTool.make({
       status: "created" as const,
       text,
     }),
-})
+});
 
 const application = Effect.gen(function* () {
-  const webMcp = yield* WebMcp
-  yield* webMcp.serve([addTodo])
-})
+  const webMcp = yield* WebMcp;
+  yield* webMcp.serve([addTodo]);
+});
 
 application.pipe(
   Effect.provide(WebMcp.layer()),
   Effect.scoped,
   Effect.runPromise,
-)
+);
 ```
 
 `input` is required so every agent-supplied value is decoded before reaching
@@ -76,9 +76,9 @@ Its requirements are captured when `webMcp.register(tool)` runs:
 
 ```ts
 const program = Effect.gen(function* () {
-  const webMcp = yield* WebMcp
-  yield* webMcp.register(toolWithApplicationServices)
-})
+  const webMcp = yield* WebMcp;
+  yield* webMcp.register(toolWithApplicationServices);
+});
 ```
 
 Registration requires `Scope`. Closing that scope aborts the browser
@@ -100,7 +100,7 @@ Use `exposedTo` to share a tool with secure cross-origin frames:
 ```ts
 yield* webMcp.register(tool, {
   exposedTo: ["https://trusted-agent.example"],
-})
+});
 ```
 
 ## Delayed browser injection
@@ -118,21 +118,21 @@ application.pipe(
   ),
   Effect.scoped,
   Effect.runPromise,
-)
+);
 ```
 
 The Layer fails with `WebMcpUnavailableError` when the timeout expires. Supplying
 a known `WebMcpModelContext` directly is typed as error-free:
 
 ```ts
-WebMcp.layer({ modelContext })
+WebMcp.layer({ modelContext });
 ```
 
 Use `AnyWebMcpTool` for a heterogeneous tool collection when preserving each
 tool's individual input and output types is unnecessary:
 
 ```ts
-const tools: ReadonlyArray<AnyWebMcpTool> = [addTodo, anotherTool]
+const tools: ReadonlyArray<AnyWebMcpTool> = [addTodo, anotherTool];
 ```
 
 ## Test through the WebMCP interface
@@ -142,26 +142,21 @@ cancellation, duplicate-name checks, JSON serialization, and scoped
 unregistration.
 
 ```ts
-import { Effect } from "effect"
-import { expect, it } from "vitest"
-import { WebMcp } from "effect-webmcp"
+import { expect, it } from "@effect/vitest";
+import { Effect } from "effect";
+import { WebMcp } from "effect-webmcp";
 
-it("executes the registered tool", async () => {
-  const result = await Effect.runPromise(
-    Effect.gen(function* () {
-      const webMcp = yield* WebMcp
-      yield* webMcp.register(addTodo)
+it.effect("executes the registered tool", () =>
+  Effect.gen(function* () {
+    const webMcp = yield* WebMcp;
+    yield* webMcp.register(addTodo);
 
-      const tools = yield* webMcp.getTools()
-      return yield* webMcp.execute(tools[0]!, { text: "Ship it" })
-    }).pipe(
-      Effect.provide(WebMcp.layerInMemory()),
-      Effect.scoped,
-    ),
-  )
+    const tools = yield* webMcp.getTools();
+    const result = yield* webMcp.execute(tools[0]!, { text: "Ship it" });
 
-  expect(result).toEqual({ status: "created", text: "Ship it" })
-})
+    expect(result).toEqual({ status: "created", text: "Ship it" });
+  }).pipe(Effect.provide(WebMcp.layerInMemory())),
+);
 ```
 
 `RegisteredWebMcpTool` values are opaque capabilities. Execute the exact value

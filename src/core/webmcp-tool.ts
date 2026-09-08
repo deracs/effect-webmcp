@@ -31,9 +31,9 @@ export interface WebMcpToolWithOutputOptions<
   Error,
   Requirements,
 > extends Omit<
-    WebMcpToolOptions<InputSchema, OutputSchema["Type"], Error, Requirements>,
-    "execute"
-  > {
+  WebMcpToolOptions<InputSchema, OutputSchema["Type"], Error, Requirements>,
+  "execute"
+> {
   readonly output: OutputSchema;
   readonly execute: (
     input: InputSchema["Type"],

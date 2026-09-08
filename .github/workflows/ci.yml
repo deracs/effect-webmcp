@@ -22,3 +22,31 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
+
+  effect-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - effect-version: 4.0.0-beta.47
+            effect-vitest-version: 4.0.0-beta.47
+          - effect-version: 4.0.0-rc.112
+            effect-vitest-version: 4.0.0-rc.112
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Select Effect ${{ matrix.effect-version }}
+        run: >-
+          pnpm add --save-dev --workspace-root
+          effect@${{ matrix.effect-version }}
+          @effect/vitest@${{ matrix.effect-vitest-version }}
+      - run: pnpm run check:type
+      - run: pnpm run test
+      - run: pnpm run build

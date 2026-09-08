@@ -1,5 +1,6 @@
 import type { Context, Scope } from "effect";
 import { Effect, Context as EffectContext } from "effect";
+
 import type {
   WebMcpDiscoveryError,
   WebMcpRegistrationError,

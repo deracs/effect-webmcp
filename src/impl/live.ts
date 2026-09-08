@@ -1,17 +1,18 @@
 import type { Duration } from "effect";
 import { Effect, Layer, Option } from "effect";
-import type {
-  RegisteredWebMcpTool,
-  WebMcp,
-  WebMcpGetToolsOptions,
-} from "../core/webmcp.js";
-import { makeWebMcpServe, WebMcpTag } from "../core/webmcp.js";
+
 import {
   WebMcpDiscoveryError,
   WebMcpRegistrationError,
   WebMcpToolExecutionError,
   WebMcpUnavailableError,
 } from "../core/webmcp-error.js";
+import type {
+  RegisteredWebMcpTool,
+  WebMcp,
+  WebMcpGetToolsOptions,
+} from "../core/webmcp.js";
+import { makeWebMcpServe, WebMcpTag } from "../core/webmcp.js";
 import type {
   NativeRegisteredWebMcpTool,
   NativeWebMcpModelContext,
@@ -55,12 +56,10 @@ export function makeWebMcpLive(
   return Effect.gen(function* () {
     const modelContext = options.modelContext ?? modelContextFromDocument();
     if (modelContext === undefined) {
-      return yield* Effect.fail(
-        new WebMcpUnavailableError({
-          message:
-            "WebMCP is unavailable: this host does not expose document.modelContext",
-        }),
-      );
+      return yield* new WebMcpUnavailableError({
+        message:
+          "WebMCP is unavailable: this host does not expose document.modelContext",
+      });
     }
 
     const nativeTools = new WeakMap<

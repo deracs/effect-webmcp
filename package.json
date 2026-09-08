@@ -1,23 +1,28 @@
 {
   "name": "effect-webmcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Effect-native tools and layers for the WebMCP browser API.",
+  "keywords": [
+    "ai",
+    "browser",
+    "effect",
+    "mcp",
+    "tools",
+    "webmcp"
+  ],
+  "homepage": "https://github.com/deracs/effect-webmcp#readme",
+  "bugs": {
+    "url": "https://github.com/deracs/effect-webmcp/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deracs/effect-webmcp.git"
   },
-  "homepage": "https://github.com/deracs/effect-webmcp#readme",
-  "bugs": {
-    "url": "https://github.com/deracs/effect-webmcp/issues"
-  },
-  "keywords": [
-    "effect",
-    "webmcp",
-    "mcp",
-    "ai",
-    "browser",
-    "tools"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -29,31 +34,33 @@
       "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "build": "tsdown",
-    "check": "pnpm run check:type && pnpm run check:lint && pnpm run test && pnpm run build",
+    "check": "pnpm run check:format && pnpm run check:lint && pnpm run check:type && pnpm run test && pnpm run build",
+    "check:format": "oxfmt --check .",
+    "check:lint": "oxlint .",
+    "check:lint:fix": "oxlint --fix .",
     "check:type": "tsc --noEmit",
-    "check:lint": "biome check",
-    "check:lint:fix": "biome check --write",
+    "format": "oxfmt .",
+    "prepare": "effect-tsgo patch --typescript --oxlint",
     "test": "vitest run"
+  },
+  "devDependencies": {
+    "@effect/tsgo": "0.41.0",
+    "@effect/vitest": "4.0.0-beta.47",
+    "effect": "4.0.0-beta.47",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.81.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "tsdown": "^0.23.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.1"
   },
   "peerDependencies": {
     "effect": ">=4.0.0-beta.47 <5"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
-    "effect": "4.0.0-beta.47",
-    "tsdown": "^0.23.0",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@12.3.4"
 }

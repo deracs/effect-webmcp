@@ -1,6 +1,7 @@
+import { describe, expect, it, vi } from "@effect/vitest";
 import { Effect, Fiber, type Layer, Schema } from "effect";
 import { TestClock } from "effect/testing";
-import { describe, expect, it, vi } from "vitest";
+
 import {
   WebMcp,
   type WebMcpModelContext,
@@ -9,87 +10,91 @@ import {
 } from "../src/index.js";
 
 describe("WebMcp.layer", () => {
-  it("bridges Effect handlers and unregisters them with the scope", async () => {
-    let registered:
-      | Parameters<WebMcpModelContext["registerTool"]>[0]
-      | undefined;
-    let registrationSignal: AbortSignal | undefined;
-    const registerTool = vi.fn<WebMcpModelContext["registerTool"]>(
-      async (tool, options) => {
-        registered = tool;
-        registrationSignal = options?.signal;
-      },
-    );
-    const modelContext: WebMcpModelContext = {
-      registerTool,
-      getTools: async () => [],
-      executeTool: async () => "{}",
-    };
-    const liveLayer: Layer.Layer<WebMcp> = WebMcp.layer({ modelContext });
-    const tool = WebMcpTool.make({
-      name: "live-greeting",
-      description: "Greets from a live browser adapter.",
-      input: Schema.Struct({ name: Schema.String }),
-      execute: ({ name }) => Effect.succeed(`Hello, ${name}!`),
-    });
-
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(tool, {
-          exposedTo: ["https://agent.example"],
-        });
-        expect(registrationSignal?.aborted).toBe(false);
-        expect(
-          yield* Effect.promise(
-            () =>
-              registered?.execute(
-                { name: "Grace" },
-                { signal: new AbortController().signal },
-              ) ?? Promise.reject(new Error("tool was not registered")),
-          ),
-        ).toBe("Hello, Grace!");
-      }).pipe(Effect.provide(liveLayer), Effect.scoped),
-    );
-
-    expect(registerTool).toHaveBeenCalledWith(
-      expect.objectContaining({
+  it.effect(
+    "bridges Effect handlers and unregisters them with the scope",
+    () => {
+      let registered:
+        | Parameters<WebMcpModelContext["registerTool"]>[0]
+        | undefined;
+      let registrationSignal: AbortSignal | undefined;
+      const registerTool = vi.fn<WebMcpModelContext["registerTool"]>(
+        (tool, options) => {
+          registered = tool;
+          registrationSignal = options?.signal;
+          return Promise.resolve();
+        },
+      );
+      const modelContext: WebMcpModelContext = {
+        registerTool,
+        getTools: () => Promise.resolve([]),
+        executeTool: () => Promise.resolve("{}"),
+      };
+      const liveLayer: Layer.Layer<WebMcp> = WebMcp.layer({ modelContext });
+      const tool = WebMcpTool.make({
         name: "live-greeting",
-        inputSchema: expect.objectContaining({ type: "object" }),
-      }),
-      expect.objectContaining({
-        exposedTo: ["https://agent.example"],
-        signal: expect.any(AbortSignal),
-      }),
-    );
-    expect(registrationSignal?.aborted).toBe(true);
-  });
+        description: "Greets from a live browser adapter.",
+        input: Schema.Struct({ name: Schema.String }),
+        execute: ({ name }) => Effect.succeed(`Hello, ${name}!`),
+      });
 
-  it("fails its layer when document.modelContext is unavailable", async () => {
-    const error = await Effect.runPromise(
-      Effect.service(WebMcp).pipe(
+      return Effect.gen(function* () {
+        yield* Effect.gen(function* () {
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(tool, {
+            exposedTo: ["https://agent.example"],
+          });
+          expect(registrationSignal?.aborted).toBe(false);
+          expect(
+            yield* Effect.promise(
+              () =>
+                registered?.execute(
+                  { name: "Grace" },
+                  { signal: new AbortController().signal },
+                ) ?? Promise.reject(new Error("tool was not registered")),
+            ),
+          ).toBe("Hello, Grace!");
+        }).pipe(Effect.provide(liveLayer), Effect.scoped);
+
+        expect(registerTool).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: "live-greeting",
+            inputSchema: expect.objectContaining({ type: "object" }),
+          }),
+          expect.objectContaining({
+            exposedTo: ["https://agent.example"],
+            signal: expect.any(AbortSignal),
+          }),
+        );
+        expect(registrationSignal?.aborted).toBe(true);
+      });
+    },
+  );
+
+  it.effect("fails its layer when document.modelContext is unavailable", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.service(WebMcp).pipe(
         Effect.provide(WebMcp.layer()),
         Effect.scoped,
         Effect.flip,
-      ),
-    );
+      );
 
-    expect(error).toBeInstanceOf(WebMcpUnavailableError);
-  });
+      expect(error).toBeInstanceOf(WebMcpUnavailableError);
+    }),
+  );
 
-  it("waits for delayed document.modelContext injection", async () => {
+  it.effect("waits for delayed document.modelContext injection", () => {
     const originalDocument = Object.getOwnPropertyDescriptor(
       globalThis,
       "document",
     );
     const modelContext: WebMcpModelContext = {
-      registerTool: async () => {},
-      getTools: async () => [],
-      executeTool: async () => "{}",
+      registerTool: () => Promise.resolve(),
+      getTools: () => Promise.resolve([]),
+      executeTool: () => Promise.resolve("{}"),
     };
 
-    const service = await Effect.runPromise(
-      Effect.acquireUseRelease(
+    return Effect.gen(function* () {
+      const service = yield* Effect.acquireUseRelease(
         Effect.sync(() => {
           Object.defineProperty(globalThis, "document", {
             configurable: true,
@@ -126,14 +131,15 @@ describe("WebMcp.layer", () => {
               Object.defineProperty(globalThis, "document", originalDocument);
             }
           }),
-      ).pipe(Effect.provide(TestClock.layer()), Effect.scoped),
-    );
+      );
 
-    expect(service).toBeDefined();
+      expect(service).toBeDefined();
+    });
   });
 
-  it("fails when delayed document.modelContext injection times out", async () => {
-    const error = await Effect.runPromise(
+  it.effect(
+    "fails when delayed document.modelContext injection times out",
+    () =>
       Effect.gen(function* () {
         const serviceFiber = yield* Effect.service(WebMcp).pipe(
           Effect.provide(
@@ -148,10 +154,9 @@ describe("WebMcp.layer", () => {
         );
         yield* Effect.yieldNow;
         yield* TestClock.adjust("1 second");
-        return yield* Fiber.join(serviceFiber);
-      }).pipe(Effect.provide(TestClock.layer()), Effect.scoped),
-    );
+        const error = yield* Fiber.join(serviceFiber);
 
-    expect(error).toBeInstanceOf(WebMcpUnavailableError);
-  });
+        expect(error).toBeInstanceOf(WebMcpUnavailableError);
+      }),
+  );
 });

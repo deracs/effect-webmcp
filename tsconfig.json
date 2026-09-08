@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -10,7 +11,17 @@
     "noImplicitOverride": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "abortControllerInEffect": "off",
+          "effectSucceedWithVoid": "off",
+          "lazyEffect": "off"
+        }
+      }
+    ]
   },
   "include": ["src", "tests", "vitest.config.ts", "tsdown.config.ts"]
 }

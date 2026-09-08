@@ -1,5 +1,6 @@
+import { describe, expect, it } from "@effect/vitest";
 import { Context, Deferred, Effect, Fiber, Schema } from "effect";
-import { describe, expect, it } from "vitest";
+
 import {
   type AnyWebMcpTool,
   EmptyWebMcpInput,
@@ -32,44 +33,40 @@ class GreetingPrefix extends Context.Service<
   { readonly value: string }
 >()("effect-webmcp/test/GreetingPrefix") {}
 
-function runInMemory<A, E>(
-  effect: Effect.Effect<A, E, WebMcp | import("effect").Scope.Scope>,
-): Promise<A> {
-  return Effect.runPromise(
-    effect.pipe(Effect.provide(WebMcp.layerInMemory()), Effect.scoped),
-  );
-}
+const provideInMemoryWebMcp = <A, E, Requirements>(
+  effect: Effect.Effect<A, E, Requirements | WebMcp>,
+) => effect.pipe(Effect.provide(WebMcp.layerInMemory()));
 
 describe("WebMcp.layerInMemory", () => {
-  it("registers, discovers, validates, executes, and encodes a tool", async () => {
-    const result = await runInMemory(
-      Effect.gen(function* () {
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(greetingTool);
-        const tools = yield* webMcp.getTools();
-        const tool = tools[0];
-        if (tool === undefined) return yield* Effect.die("missing tool");
-        const output = yield* webMcp.execute(tool, { name: "Ada" });
-        return { tool, output };
-      }),
-    );
+  it.effect(
+    "registers, discovers, validates, executes, and encodes a tool",
+    () =>
+      provideInMemoryWebMcp(
+        Effect.gen(function* () {
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(greetingTool);
+          const tools = yield* webMcp.getTools();
+          const tool = tools[0];
+          if (tool === undefined) return yield* Effect.die("missing tool");
+          const output = yield* webMcp.execute(tool, { name: "Ada" });
+          expect(tool).toMatchObject({
+            name: "greet-person",
+            title: "Greet person",
+            description: "Returns a greeting for one person.",
+            annotations: { readOnlyHint: true },
+            origin: "https://effect-webmcp.test",
+          });
+          expect(tool.inputSchema).toMatchObject({
+            type: "object",
+            required: ["name"],
+            additionalProperties: false,
+          });
+          expect(output).toEqual({ greeting: "Hello, Ada!" });
+        }),
+      ),
+  );
 
-    expect(result.tool).toMatchObject({
-      name: "greet-person",
-      title: "Greet person",
-      description: "Returns a greeting for one person.",
-      annotations: { readOnlyHint: true },
-      origin: "https://effect-webmcp.test",
-    });
-    expect(result.tool.inputSchema).toMatchObject({
-      type: "object",
-      required: ["name"],
-      additionalProperties: false,
-    });
-    expect(result.output).toEqual({ greeting: "Hello, Ada!" });
-  });
-
-  it("rejects unknown and excess input before the handler runs", async () => {
+  it.effect("rejects unknown and excess input before the handler runs", () => {
     let calls = 0;
     const tool = WebMcpTool.make({
       name: "validated-input",
@@ -82,44 +79,41 @@ describe("WebMcp.layerInMemory", () => {
         }),
     });
 
-    const error = await Effect.runPromise(
+    return provideInMemoryWebMcp(
       Effect.gen(function* () {
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(tool);
-        const [registered] = yield* webMcp.getTools();
-        if (registered === undefined) return yield* Effect.die("missing tool");
-        return yield* webMcp.execute(registered, {
-          name: "Ada",
-          unexpected: true,
-        });
-      }).pipe(
-        Effect.provide(WebMcp.layerInMemory()),
-        Effect.scoped,
-        Effect.flip,
-      ),
-    );
+        const error = yield* Effect.gen(function* () {
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(tool);
+          const [registered] = yield* webMcp.getTools();
+          if (registered === undefined)
+            return yield* Effect.die("missing tool");
+          return yield* webMcp.execute(registered, {
+            name: "Ada",
+            unexpected: true,
+          });
+        }).pipe(Effect.flip);
 
-    expect(error).toBeInstanceOf(WebMcpToolExecutionError);
-    expect(calls).toBe(0);
+        expect(error).toBeInstanceOf(WebMcpToolExecutionError);
+        expect(calls).toBe(0);
+      }),
+    );
   });
 
-  it("rejects duplicate names with a registration error", async () => {
-    const error = await Effect.runPromise(
+  it.effect("rejects duplicate names with a registration error", () =>
+    provideInMemoryWebMcp(
       Effect.gen(function* () {
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(greetingTool);
-        yield* webMcp.register(greetingTool);
-      }).pipe(
-        Effect.provide(WebMcp.layerInMemory()),
-        Effect.scoped,
-        Effect.flip,
-      ),
-    );
+        const error = yield* Effect.gen(function* () {
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(greetingTool);
+          yield* webMcp.register(greetingTool);
+        }).pipe(Effect.flip);
 
-    expect(error).toBeInstanceOf(WebMcpRegistrationError);
-  });
+        expect(error).toBeInstanceOf(WebMcpRegistrationError);
+      }),
+    ),
+  );
 
-  it("applies the WebMCP tool-name rules before registration", async () => {
+  it.effect("applies the WebMCP tool-name rules before registration", () => {
     const tool = WebMcpTool.make({
       name: "invalid tool name",
       description: "Cannot be registered because its name contains spaces.",
@@ -127,59 +121,57 @@ describe("WebMcp.layerInMemory", () => {
       execute: () => Effect.succeed(null),
     });
 
-    const error = await Effect.runPromise(
+    return provideInMemoryWebMcp(
       Effect.gen(function* () {
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(tool);
-      }).pipe(
-        Effect.provide(WebMcp.layerInMemory()),
-        Effect.scoped,
-        Effect.flip,
-      ),
-    );
+        const error = yield* Effect.gen(function* () {
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(tool);
+        }).pipe(Effect.flip);
 
-    expect(error).toBeInstanceOf(WebMcpRegistrationError);
+        expect(error).toBeInstanceOf(WebMcpRegistrationError);
+      }),
+    );
   });
 
-  it("rejects results that the browser cannot JSON serialize", async () => {
+  it.effect("rejects results that the browser cannot JSON serialize", () => {
     const tool = WebMcpTool.make({
       name: "undefined-result",
       description: "Returns an unsupported value.",
       input: EmptyWebMcpInput,
+      // oxlint-disable-next-line effecttsgo/effect-succeed-with-void -- Undefined is the invalid serialization result under test.
       execute: () => Effect.succeed(undefined),
     });
 
-    const error = await Effect.runPromise(
+    return provideInMemoryWebMcp(
       Effect.gen(function* () {
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(tool);
-        const [registered] = yield* webMcp.getTools();
-        if (registered === undefined) return yield* Effect.die("missing tool");
-        return yield* webMcp.execute(registered);
-      }).pipe(
-        Effect.provide(WebMcp.layerInMemory()),
-        Effect.scoped,
-        Effect.flip,
-      ),
-    );
+        const error = yield* Effect.gen(function* () {
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(tool);
+          const [registered] = yield* webMcp.getTools();
+          if (registered === undefined)
+            return yield* Effect.die("missing tool");
+          return yield* webMcp.execute(registered);
+        }).pipe(Effect.flip);
 
-    expect(error).toBeInstanceOf(WebMcpToolExecutionError);
+        expect(error).toBeInstanceOf(WebMcpToolExecutionError);
+      }),
+    );
   });
 
-  it("removes tools when their registration scope closes", async () => {
-    const count = await runInMemory(
+  it.effect("removes tools when their registration scope closes", () =>
+    provideInMemoryWebMcp(
       Effect.gen(function* () {
         const webMcp = yield* WebMcp;
         yield* Effect.scoped(webMcp.register(greetingTool));
-        return (yield* webMcp.getTools()).length;
+        const count = (yield* webMcp.getTools()).length;
+
+        expect(count).toBe(0);
       }),
-    );
+    ),
+  );
 
-    expect(count).toBe(0);
-  });
-
-  it("serves tools until the serving fiber is interrupted", async () => {
-    const result = await runInMemory(
+  it.effect("serves tools until the serving fiber is interrupted", () =>
+    provideInMemoryWebMcp(
       Effect.gen(function* () {
         const webMcp = yield* WebMcp;
         const servingFiber = yield* webMcp
@@ -189,17 +181,14 @@ describe("WebMcp.layerInMemory", () => {
         const whileServing = yield* webMcp.getTools();
         yield* Fiber.interrupt(servingFiber);
         const afterInterruption = yield* webMcp.getTools();
-        return { whileServing, afterInterruption };
+
+        expect(whileServing.map((tool) => tool.name)).toEqual(["greet-person"]);
+        expect(afterInterruption).toEqual([]);
       }),
-    );
+    ),
+  );
 
-    expect(result.whileServing.map((tool) => tool.name)).toEqual([
-      "greet-person",
-    ]);
-    expect(result.afterInterruption).toEqual([]);
-  });
-
-  it("captures every served tool's Effect service requirements", async () => {
+  it.effect("captures every served tool's Effect service requirements", () => {
     const contextualGreetingTool = WebMcpTool.make({
       name: "contextual-greeting",
       description: "Returns a greeting from an Effect service.",
@@ -210,7 +199,8 @@ describe("WebMcp.layerInMemory", () => {
           return `${prefix.value}, ${name}!`;
         }),
     });
-    const output = await runInMemory(
+
+    return provideInMemoryWebMcp(
       Effect.gen(function* () {
         const webMcp = yield* WebMcp;
         const servingFiber = yield* webMcp
@@ -224,46 +214,44 @@ describe("WebMcp.layerInMemory", () => {
         if (registered === undefined) {
           return yield* Effect.die("missing contextual greeting tool");
         }
-        const result = yield* webMcp.execute(registered, { name: "Ada" });
+        const output = yield* webMcp.execute(registered, { name: "Ada" });
         yield* Fiber.interrupt(servingFiber);
-        return result;
+
+        expect(output).toBe("Welcome, Ada!");
       }).pipe(Effect.provideService(GreetingPrefix, { value: "Welcome" })),
     );
-
-    expect(output).toBe("Welcome, Ada!");
   });
 
-  it("interrupts the handler when a tool execution is cancelled", async () => {
-    let cleanedUp = false;
+  it.effect("interrupts the handler when a tool execution is cancelled", () =>
+    Effect.gen(function* () {
+      const cleanedUp = yield* Deferred.make<void>();
 
-    await runInMemory(
-      Effect.gen(function* () {
-        const started = yield* Deferred.make<void>();
-        const tool = WebMcpTool.make({
-          name: "cancellable-tool",
-          description: "Waits until its WebMCP execution is cancelled.",
-          input: EmptyWebMcpInput,
-          execute: () =>
-            Deferred.succeed(started, undefined).pipe(
-              Effect.andThen(Effect.never),
-              Effect.ensuring(
-                Effect.sync(() => {
-                  cleanedUp = true;
-                }),
+      yield* provideInMemoryWebMcp(
+        Effect.gen(function* () {
+          const started = yield* Deferred.make<void>();
+          const tool = WebMcpTool.make({
+            name: "cancellable-tool",
+            description: "Waits until its WebMCP execution is cancelled.",
+            input: EmptyWebMcpInput,
+            execute: () =>
+              Deferred.succeed(started, undefined).pipe(
+                Effect.andThen(Effect.never),
+                Effect.ensuring(Deferred.succeed(cleanedUp, undefined)),
               ),
-            ),
-        });
-        const webMcp = yield* WebMcp;
-        yield* webMcp.register(tool);
-        const [registered] = yield* webMcp.getTools();
-        if (registered === undefined) return yield* Effect.die("missing tool");
+          });
+          const webMcp = yield* WebMcp;
+          yield* webMcp.register(tool);
+          const [registered] = yield* webMcp.getTools();
+          if (registered === undefined)
+            return yield* Effect.die("missing tool");
 
-        const execution = yield* Effect.forkChild(webMcp.execute(registered));
-        yield* Deferred.await(started);
-        yield* Fiber.interrupt(execution);
-      }),
-    );
+          const execution = yield* Effect.forkChild(webMcp.execute(registered));
+          yield* Deferred.await(started);
+          yield* Fiber.interrupt(execution);
+        }),
+      ).pipe(Effect.scoped);
 
-    expect(cleanedUp).toBe(true);
-  });
+      yield* Deferred.await(cleanedUp);
+    }),
+  );
 });

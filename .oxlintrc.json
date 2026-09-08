@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "effecttsgo/any-unknown-in-error-context": "off",
+    "effecttsgo/prefer-schema-over-json": "off"
+  }
+}

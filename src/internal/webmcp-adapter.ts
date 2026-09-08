@@ -1,13 +1,14 @@
 import { Effect, FiberSet } from "effect";
-import type {
-  RegisteredWebMcpTool,
-  WebMcpRegisterOptions,
-} from "../core/webmcp.js";
+
 import {
   WebMcpRegistrationError,
   WebMcpToolExecutionError,
 } from "../core/webmcp-error.js";
 import type { WebMcpTool } from "../core/webmcp-tool.js";
+import type {
+  RegisteredWebMcpTool,
+  WebMcpRegisterOptions,
+} from "../core/webmcp.js";
 import type {
   NativeRegisteredWebMcpTool,
   NativeWebMcpRegisterOptions,
@@ -113,16 +114,15 @@ export function scopedWebMcpRegistrationOptions(
   import("effect").Scope.Scope
 > {
   return Effect.gen(function* () {
+    // oxlint-disable-next-line effecttsgo/abort-controller-in-effect -- Effect.abortSignal is unavailable at the minimum supported Effect version.
     const controller = new AbortController();
     const externalSignal = options?.signal;
 
     if (externalSignal?.aborted === true) {
-      return yield* Effect.fail(
-        new WebMcpRegistrationError({
-          toolName,
-          cause: externalSignal.reason,
-        }),
-      );
+      return yield* new WebMcpRegistrationError({
+        toolName,
+        cause: externalSignal.reason,
+      });
     }
 
     if (externalSignal !== undefined) {

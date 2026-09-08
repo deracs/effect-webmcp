@@ -1,10 +1,11 @@
 import { Effect, Layer } from "effect";
-import type { RegisteredWebMcpTool, WebMcp } from "../core/webmcp.js";
-import { makeWebMcpServe, WebMcpTag } from "../core/webmcp.js";
+
 import {
   WebMcpRegistrationError,
   WebMcpToolExecutionError,
 } from "../core/webmcp-error.js";
+import type { RegisteredWebMcpTool, WebMcp } from "../core/webmcp.js";
+import { makeWebMcpServe, WebMcpTag } from "../core/webmcp.js";
 import type { NativeWebMcpTool } from "../internal/native-webmcp.js";
 import {
   makeNativeWebMcpTool,
@@ -20,11 +21,7 @@ interface InMemoryToolEntry {
 }
 
 /** Creates a fresh, scoped WebMCP implementation for deterministic tests. */
-export const makeWebMcpInMemory: Effect.Effect<
-  WebMcp,
-  never,
-  import("effect").Scope.Scope
-> = Effect.gen(function* () {
+export const makeWebMcpInMemory: Effect.Effect<WebMcp> = Effect.sync(() => {
   const tools = new Map<string, InMemoryToolEntry>();
   const registeredEntries = new WeakMap<
     RegisteredWebMcpTool,
@@ -34,14 +31,12 @@ export const makeWebMcpInMemory: Effect.Effect<
     Effect.gen(function* () {
       yield* validateWebMcpToolDefinition(tool);
       if (tools.has(tool.name)) {
-        return yield* Effect.fail(
-          new WebMcpRegistrationError({
-            toolName: tool.name,
-            cause: new Error(
-              `WebMCP tool name is already registered: ${tool.name}`,
-            ),
-          }),
-        );
+        return yield* new WebMcpRegistrationError({
+          toolName: tool.name,
+          cause: new Error(
+            `WebMCP tool name is already registered: ${tool.name}`,
+          ),
+        });
       }
       const definition = yield* makeNativeWebMcpTool(tool);
       const nativeOptions = yield* scopedWebMcpRegistrationOptions(
@@ -50,12 +45,10 @@ export const makeWebMcpInMemory: Effect.Effect<
       );
       const signal = nativeOptions.signal;
       if (signal?.aborted === true) {
-        return yield* Effect.fail(
-          new WebMcpRegistrationError({
-            toolName: tool.name,
-            cause: signal.reason,
-          }),
-        );
+        return yield* new WebMcpRegistrationError({
+          toolName: tool.name,
+          cause: signal.reason,
+        });
       }
 
       const entry: InMemoryToolEntry = {
@@ -125,6 +118,7 @@ export const makeWebMcpInMemory: Effect.Effect<
 });
 
 /** Provides a fresh in-process WebMCP registry for tests. */
+// oxlint-disable-next-line effecttsgo/lazy-effect -- Each call communicates that the registry is isolated.
 export function webMcpInMemoryLayer(): Layer.Layer<WebMcp> {
   return Layer.effect(WebMcpTag, makeWebMcpInMemory);
 }
