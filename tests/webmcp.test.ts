@@ -1,6 +1,7 @@
-import { Deferred, Effect, Fiber, Schema } from "effect";
+import { Context, Deferred, Effect, Fiber, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
+  type AnyWebMcpTool,
   EmptyWebMcpInput,
   WebMcp,
   WebMcpRegistrationError,
@@ -24,6 +25,12 @@ const greetingTool = WebMcpTool.make({
   annotations: { readOnlyHint: true },
   execute: ({ name }) => Effect.succeed({ greeting: `Hello, ${name}!` }),
 });
+const greetingTools: ReadonlyArray<AnyWebMcpTool> = [greetingTool];
+
+class GreetingPrefix extends Context.Service<
+  GreetingPrefix,
+  { readonly value: string }
+>()("effect-webmcp/test/GreetingPrefix") {}
 
 function runInMemory<A, E>(
   effect: Effect.Effect<A, E, WebMcp | import("effect").Scope.Scope>,
@@ -169,6 +176,61 @@ describe("WebMcp.layerInMemory", () => {
     );
 
     expect(count).toBe(0);
+  });
+
+  it("serves tools until the serving fiber is interrupted", async () => {
+    const result = await runInMemory(
+      Effect.gen(function* () {
+        const webMcp = yield* WebMcp;
+        const servingFiber = yield* webMcp
+          .serve(greetingTools)
+          .pipe(Effect.forkScoped);
+        yield* Effect.yieldNow;
+        const whileServing = yield* webMcp.getTools();
+        yield* Fiber.interrupt(servingFiber);
+        const afterInterruption = yield* webMcp.getTools();
+        return { whileServing, afterInterruption };
+      }),
+    );
+
+    expect(result.whileServing.map((tool) => tool.name)).toEqual([
+      "greet-person",
+    ]);
+    expect(result.afterInterruption).toEqual([]);
+  });
+
+  it("captures every served tool's Effect service requirements", async () => {
+    const contextualGreetingTool = WebMcpTool.make({
+      name: "contextual-greeting",
+      description: "Returns a greeting from an Effect service.",
+      input: GreetingInput,
+      execute: ({ name }) =>
+        Effect.gen(function* () {
+          const prefix = yield* GreetingPrefix;
+          return `${prefix.value}, ${name}!`;
+        }),
+    });
+    const output = await runInMemory(
+      Effect.gen(function* () {
+        const webMcp = yield* WebMcp;
+        const servingFiber = yield* webMcp
+          .serve([greetingTool, contextualGreetingTool])
+          .pipe(Effect.forkScoped);
+        yield* Effect.yieldNow;
+        const tools = yield* webMcp.getTools();
+        const registered = tools.find(
+          (tool) => tool.name === contextualGreetingTool.name,
+        );
+        if (registered === undefined) {
+          return yield* Effect.die("missing contextual greeting tool");
+        }
+        const result = yield* webMcp.execute(registered, { name: "Ada" });
+        yield* Fiber.interrupt(servingFiber);
+        return result;
+      }).pipe(Effect.provideService(GreetingPrefix, { value: "Welcome" })),
+    );
+
+    expect(output).toBe("Welcome, Ada!");
   });
 
   it("interrupts the handler when a tool execution is cancelled", async () => {

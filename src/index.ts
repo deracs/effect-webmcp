@@ -2,7 +2,7 @@ import type { Context } from "effect";
 import type * as internal from "./core/webmcp.js";
 import { WebMcpTag } from "./core/webmcp.js";
 import { webMcpInMemoryLayer } from "./impl/in-memory.js";
-import { type WebMcpLiveOptions, webMcpLiveLayer } from "./impl/live.js";
+import { webMcpLiveLayer, webMcpWhenAvailableLayer } from "./impl/live.js";
 
 export type {
   RegisteredWebMcpTool,
@@ -16,24 +16,29 @@ export {
   WebMcpUnavailableError,
 } from "./core/webmcp-error.js";
 export {
+  type AnyWebMcpTool,
   EmptyWebMcpInput,
   WebMcpTool,
   type WebMcpToolAnnotations,
   type WebMcpToolOptions,
   type WebMcpToolWithOutputOptions,
 } from "./core/webmcp-tool.js";
-export type { WebMcpLiveOptions } from "./impl/live.js";
+export type {
+  WebMcpLiveOptions,
+  WebMcpModelContext,
+  WebMcpWhenAvailableOptions,
+} from "./impl/live.js";
 
 /** Effect service for registering, discovering, and invoking browser WebMCP tools. */
 export interface WebMcp extends internal.WebMcp {}
 
 /** WebMCP service tag with browser and in-memory layer constructors. */
 export const WebMcp: Context.Service<WebMcp, WebMcp> & {
-  readonly layer: (
-    options?: WebMcpLiveOptions,
-  ) => ReturnType<typeof webMcpLiveLayer>;
+  readonly layer: typeof webMcpLiveLayer;
+  readonly layerWhenAvailable: typeof webMcpWhenAvailableLayer;
   readonly layerInMemory: () => ReturnType<typeof webMcpInMemoryLayer>;
 } = Object.assign(WebMcpTag, {
-  layer: (options?: WebMcpLiveOptions) => webMcpLiveLayer(options),
+  layer: webMcpLiveLayer,
+  layerWhenAvailable: webMcpWhenAvailableLayer,
   layerInMemory: () => webMcpInMemoryLayer(),
 });

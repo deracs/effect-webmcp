@@ -132,6 +132,14 @@ export class WebMcpTool<Input, Output, Error, Requirements> {
   }
 }
 
+/** An Effect-native WebMCP tool collection with shared service requirements. */
+export type AnyWebMcpTool<Requirements = never> = WebMcpTool<
+  unknown,
+  unknown,
+  unknown,
+  Requirements
+>;
+
 /** A strict empty object schema for WebMCP tools that take no arguments. */
 export const EmptyWebMcpInput = Schema.Record(Schema.String, Schema.Never);
 

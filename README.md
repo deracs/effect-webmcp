@@ -50,12 +50,12 @@ const addTodo = WebMcpTool.make({
     }),
 })
 
-const program = Effect.gen(function* () {
+const application = Effect.gen(function* () {
   const webMcp = yield* WebMcp
-  yield* webMcp.register(addTodo)
+  yield* webMcp.serve([addTodo])
 })
 
-program.pipe(
+application.pipe(
   Effect.provide(WebMcp.layer()),
   Effect.scoped,
   Effect.runPromise,
@@ -86,12 +86,53 @@ registration signal, unregistering the tool. A browser cancellation signal
 interrupts the handler fiber, so `Effect.ensuring`, `Effect.onInterrupt`, and
 handler-owned scopes run their cleanup normally.
 
+`webMcp.serve(tools)` registers every tool and remains active until interrupted.
+Run it inside the application's long-lived root scope. UI integrations should
+fork the scoped `serve` effect when mounting and interrupt that fiber when
+unmounting.
+
+The lower-level `webMcp.register(tool)` operation completes after registering
+one tool. Do not run and await a scoped effect that only calls `register`: the
+scope then closes immediately and unregisters the tool.
+
 Use `exposedTo` to share a tool with secure cross-origin frames:
 
 ```ts
 yield* webMcp.register(tool, {
   exposedTo: ["https://trusted-agent.example"],
 })
+```
+
+## Delayed browser injection
+
+Browser extensions may inject `document.modelContext` after application
+startup. Use the polling Layer when the context is not guaranteed to exist yet:
+
+```ts
+application.pipe(
+  Effect.provide(
+    WebMcp.layerWhenAvailable({
+      timeout: "30 seconds",
+      interval: "500 millis",
+    }),
+  ),
+  Effect.scoped,
+  Effect.runPromise,
+)
+```
+
+The Layer fails with `WebMcpUnavailableError` when the timeout expires. Supplying
+a known `WebMcpModelContext` directly is typed as error-free:
+
+```ts
+WebMcp.layer({ modelContext })
+```
+
+Use `AnyWebMcpTool` for a heterogeneous tool collection when preserving each
+tool's individual input and output types is unnecessary:
+
+```ts
+const tools: ReadonlyArray<AnyWebMcpTool> = [addTodo, anotherTool]
 ```
 
 ## Test through the WebMCP interface

@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 import type { RegisteredWebMcpTool, WebMcp } from "../core/webmcp.js";
-import { WebMcpTag } from "../core/webmcp.js";
+import { makeWebMcpServe, WebMcpTag } from "../core/webmcp.js";
 import {
   WebMcpRegistrationError,
   WebMcpToolExecutionError,
@@ -30,49 +30,51 @@ export const makeWebMcpInMemory: Effect.Effect<
     RegisteredWebMcpTool,
     InMemoryToolEntry
   >();
+  const register: WebMcp["register"] = (tool, options) =>
+    Effect.gen(function* () {
+      yield* validateWebMcpToolDefinition(tool);
+      if (tools.has(tool.name)) {
+        return yield* Effect.fail(
+          new WebMcpRegistrationError({
+            toolName: tool.name,
+            cause: new Error(
+              `WebMCP tool name is already registered: ${tool.name}`,
+            ),
+          }),
+        );
+      }
+      const definition = yield* makeNativeWebMcpTool(tool);
+      const nativeOptions = yield* scopedWebMcpRegistrationOptions(
+        tool.name,
+        options,
+      );
+      const signal = nativeOptions.signal;
+      if (signal?.aborted === true) {
+        return yield* Effect.fail(
+          new WebMcpRegistrationError({
+            toolName: tool.name,
+            cause: signal.reason,
+          }),
+        );
+      }
+
+      const entry: InMemoryToolEntry = {
+        definition,
+        exposedTo: nativeOptions.exposedTo ?? [],
+      };
+      tools.set(tool.name, entry);
+      signal?.addEventListener(
+        "abort",
+        () => {
+          if (tools.get(tool.name) === entry) tools.delete(tool.name);
+        },
+        { once: true },
+      );
+    });
 
   return WebMcpTag.of({
-    register: (tool, options) =>
-      Effect.gen(function* () {
-        yield* validateWebMcpToolDefinition(tool);
-        if (tools.has(tool.name)) {
-          return yield* Effect.fail(
-            new WebMcpRegistrationError({
-              toolName: tool.name,
-              cause: new Error(
-                `WebMCP tool name is already registered: ${tool.name}`,
-              ),
-            }),
-          );
-        }
-        const definition = yield* makeNativeWebMcpTool(tool);
-        const nativeOptions = yield* scopedWebMcpRegistrationOptions(
-          tool.name,
-          options,
-        );
-        const signal = nativeOptions.signal;
-        if (signal?.aborted === true) {
-          return yield* Effect.fail(
-            new WebMcpRegistrationError({
-              toolName: tool.name,
-              cause: signal.reason,
-            }),
-          );
-        }
-
-        const entry: InMemoryToolEntry = {
-          definition,
-          exposedTo: nativeOptions.exposedTo ?? [],
-        };
-        tools.set(tool.name, entry);
-        signal?.addEventListener(
-          "abort",
-          () => {
-            if (tools.get(tool.name) === entry) tools.delete(tool.name);
-          },
-          { once: true },
-        );
-      }),
+    register,
+    serve: makeWebMcpServe(register),
     getTools: () =>
       Effect.sync(() =>
         [...tools.values()]
