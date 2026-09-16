@@ -19,8 +19,27 @@ service APIs are used directly. Its supported range starts at
 
 ## Examples
 
-- [`examples/foldkit`](./examples/foldkit) contains a runnable Foldkit counter
-  application.
+Two runnable counter apps show how to register a tool, update the UI from its
+handler, and unregister it when the UI stops:
+
+- [`examples/tanstack`](./examples/tanstack): React + TanStack Router, with a
+  registration scope owned by the counter route.
+- [`examples/foldkit`](./examples/foldkit): Foldkit, with a persistent
+  subscription that sends tool calls through the normal update loop.
+
+From a repository checkout:
+
+```bash
+pnpm install
+pnpm dev:tanstack
+# Or, in another terminal:
+pnpm dev:foldkit
+```
+
+The buttons work in any supported browser. Agent access requires a host exposing
+the `document.modelContext` API used by this package. See the
+[examples guide](./examples/README.md) for compatibility, manual tool invocation,
+and instructions for copying an example into another project.
 
 ## Define and register a tool
 

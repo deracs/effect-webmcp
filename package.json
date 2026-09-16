@@ -39,7 +39,10 @@
   },
   "scripts": {
     "build": "tsdown",
-    "check": "pnpm run check:format && pnpm run check:lint && pnpm run check:type && pnpm run test && pnpm run build",
+    "check": "pnpm run check:format && pnpm run check:lint && pnpm run check:type && pnpm run test && pnpm run build && pnpm run check:examples",
+    "check:examples": "pnpm --filter './examples/*' run check",
+    "dev:tanstack": "pnpm run build && pnpm --filter @effect-webmcp/example-tanstack dev",
+    "dev:foldkit": "pnpm run build && pnpm --filter @effect-webmcp/example-foldkit dev",
     "check:format": "oxfmt --check .",
     "check:lint": "oxlint .",
     "check:lint:fix": "oxlint --fix .",

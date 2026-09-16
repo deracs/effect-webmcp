@@ -1,0 +1,24 @@
+{
+  "name": "@effect-webmcp/example-foldkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check:type": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm run check:type && pnpm run test && pnpm run build"
+  },
+  "dependencies": {
+    "effect": "4.0.0-rc.112",
+    "effect-webmcp": "workspace:*",
+    "foldkit": "0.158.2"
+  },
+  "devDependencies": {
+    "happy-dom": "20.14.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "4.1.1"
+  }
+}
