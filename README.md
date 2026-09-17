@@ -1,5 +1,7 @@
 # effect-webmcp
 
+[![npm version](https://img.shields.io/npm/v/effect-webmcp?logo=npm)](https://www.npmjs.com/package/effect-webmcp)
+
 Effect-native tools and layers for the
 [WebMCP](https://github.com/webmachinelearning/webmcp) browser API.
 
